@@ -1,14 +1,30 @@
 package com.example.lab12_maps
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
@@ -22,6 +38,15 @@ fun MapScreen() {
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f)
     }
+
+    var mapType by remember { mutableStateOf(MapType.NORMAL) }
+
+    val mapTypes = listOf(
+        "Normal" to MapType.NORMAL,
+        "Satélite" to MapType.SATELLITE,
+        "Relieve" to MapType.TERRAIN,
+        "Híbrido" to MapType.HYBRID
+    )
 
     // Lista de varios puntos de interés (3.2)
     val locations = listOf(
@@ -52,25 +77,6 @@ fun MapScreen() {
         LatLng(-16.399299, -71.536721)
     )
 
-    // Dibujar polígonos (5.1)
-    Polygon(
-        points = plazaDeArmasPolygon,
-        strokeColor = Color.Red,
-        fillColor = Color.Blue,
-        strokeWidth = 5f
-    )
-    Polygon(
-        points = parqueLambramaniPolygon,
-        strokeColor = Color.Red,
-        fillColor = Color.Blue,
-        strokeWidth = 5f
-    )
-    Polygon(
-        points = mallAventuraPolygon,
-        strokeColor = Color.Red,
-        fillColor = Color.Blue,
-        strokeWidth = 5f
-    )
     // Controlar la cámara programáticamente (4.1)
     LaunchedEffect(Unit) {
         cameraPositionState.animate(
@@ -83,7 +89,8 @@ fun MapScreen() {
         // Añadir GoogleMap al layout
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState
+            cameraPositionState = cameraPositionState,
+            properties = MapProperties(mapType = mapType) // Ejercicio 1
         ) {
             // Marcador principal en Arequipa con icono personalizado
             Marker(
@@ -99,6 +106,40 @@ fun MapScreen() {
                     title = "Ubicación",
                     snippet = "Punto de interés"
                 )
+            }
+
+            Polygon(
+                points = plazaDeArmasPolygon,
+                strokeColor = Color.Red,
+                fillColor = Color.Blue,
+                strokeWidth = 5f
+            )
+            Polygon(
+                points = parqueLambramaniPolygon,
+                strokeColor = Color.Red,
+                fillColor = Color.Blue,
+                strokeWidth = 5f
+            )
+            Polygon(
+                points = mallAventuraPolygon,
+                strokeColor = Color.Red,
+                fillColor = Color.Blue,
+                strokeWidth = 5f
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(8.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            mapTypes.forEach { (nombre, tipo) ->
+                Button(onClick = { mapType = tipo }) {
+                    Text(nombre)
+                }
             }
         }
     }
