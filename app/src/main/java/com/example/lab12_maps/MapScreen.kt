@@ -1,5 +1,10 @@
 package com.example.lab12_maps
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,14 +16,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -29,12 +41,12 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
-import androidx.compose.runtime.LaunchedEffect
-import com.google.android.gms.maps.CameraUpdateFactory
+import kotlinx.coroutines.launch
 
+@SuppressLint("MissingPermission")
 @Composable
 fun MapScreen() {
-    val arequipaLocation = LatLng(-16.4040102, -71.559611) // Arequipa, Perú
+    val arequipaLocation = LatLng(-16.4040102, -71.559611)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f)
     }
@@ -48,14 +60,52 @@ fun MapScreen() {
         "Híbrido" to MapType.HYBRID
     )
 
-    // Lista de varios puntos de interés (3.2)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var userLocation by remember { mutableStateOf<LatLng?>(null) }
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permisos ->
+        hasPermission = permisos[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permisos[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasPermission) {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            fusedLocationClient
+                .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    location?.let { userLocation = LatLng(it.latitude, it.longitude) }
+                }
+        }
+    }
+
     val locations = listOf(
-        LatLng(-16.433415, -71.5442652), // JLByR
-        LatLng(-16.4205151, -71.4945209), // Paucarpata
-        LatLng(-16.3524187, -71.5675994) // Zamacola
+        LatLng(-16.433415, -71.5442652),
+        LatLng(-16.4205151, -71.4945209),
+        LatLng(-16.3524187, -71.5675994)
     )
 
-    // Coordenadas de los polígonos (5.1)
     val mallAventuraPolygon = listOf(
         LatLng(-16.432292, -71.509145),
         LatLng(-16.432757, -71.509626),
@@ -77,29 +127,28 @@ fun MapScreen() {
         LatLng(-16.399299, -71.536721)
     )
 
-    // Controlar la cámara programáticamente (4.1)
     LaunchedEffect(Unit) {
         cameraPositionState.animate(
-            update = CameraUpdateFactory.newLatLngZoom(LatLng(-16.2520984, -71.6836503), 12f), // Mover a Yura
+            update = CameraUpdateFactory.newLatLngZoom(LatLng(-16.2520984, -71.6836503), 12f),
             durationMs = 3000
         )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Añadir GoogleMap al layout
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapProperties(mapType = mapType) // Ejercicio 1
+            properties = MapProperties(
+                mapType = mapType,
+                isMyLocationEnabled = hasPermission
+            )
         ) {
-            // Marcador principal en Arequipa con icono personalizado
             Marker(
                 state = rememberMarkerState(position = arequipaLocation),
                 icon = BitmapDescriptorFactory.fromResource(R.drawable.montana),
                 title = "Arequipa, Perú"
             )
 
-            // Iterar la lista para añadir varios marcadores
             locations.forEach { location ->
                 Marker(
                     state = rememberMarkerState(position = location),
@@ -126,6 +175,14 @@ fun MapScreen() {
                 fillColor = Color.Blue,
                 strokeWidth = 5f
             )
+
+            userLocation?.let {
+                Marker(
+                    state = rememberMarkerState(position = it),
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
+                    title = "Estás aquí"
+                )
+            }
         }
 
         Row(
@@ -140,6 +197,18 @@ fun MapScreen() {
                 Button(onClick = { mapType = tipo }) {
                     Text(nombre)
                 }
+            }
+            Button(onClick = {
+                userLocation?.let {
+                    scope.launch {
+                        cameraPositionState.animate(
+                            CameraUpdateFactory.newLatLngZoom(it, 16f),
+                            1500
+                        )
+                    }
+                }
+            }) {
+                Text("Mi ubicación")
             }
         }
     }
