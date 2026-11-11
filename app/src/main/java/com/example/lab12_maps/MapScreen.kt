@@ -19,18 +19,34 @@ fun MapScreen() {
         position = CameraPosition.fromLatLngZoom(arequipaLocation, 12f)
     }
 
+    // Lista de varios puntos de interés (3.2)
+    val locations = listOf(
+        LatLng(-16.433415, -71.5442652), // JLByR
+        LatLng(-16.4205151, -71.4945209), // Paucarpata
+        LatLng(-16.3524187, -71.5675994) // Zamacola
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Añadir GoogleMap al layout
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState
         ) {
-            // Añadir marcador en Arequipa con el icono personalizado
+            // Marcador principal en Arequipa con icono personalizado
             Marker(
                 state = rememberMarkerState(position = arequipaLocation),
                 icon = BitmapDescriptorFactory.fromResource(R.drawable.montana),
                 title = "Arequipa, Perú"
             )
+
+            // Iterar la lista para añadir varios marcadores
+            locations.forEach { location ->
+                Marker(
+                    state = rememberMarkerState(position = location),
+                    title = "Ubicación",
+                    snippet = "Punto de interés"
+                )
+            }
         }
     }
 }
