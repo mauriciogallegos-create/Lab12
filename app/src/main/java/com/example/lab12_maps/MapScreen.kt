@@ -11,6 +11,8 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
+import androidx.compose.runtime.LaunchedEffect
+import com.google.android.gms.maps.CameraUpdateFactory
 
 @Composable
 fun MapScreen() {
@@ -25,6 +27,14 @@ fun MapScreen() {
         LatLng(-16.4205151, -71.4945209), // Paucarpata
         LatLng(-16.3524187, -71.5675994) // Zamacola
     )
+
+    // Controlar la cámara programáticamente (4.1)
+    LaunchedEffect(Unit) {
+        cameraPositionState.animate(
+            update = CameraUpdateFactory.newLatLngZoom(LatLng(-16.2520984, -71.6836503), 12f), // Mover a Yura
+            durationMs = 3000
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Añadir GoogleMap al layout
